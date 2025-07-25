@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: due-dates-app
+    env: python
+    buildCommand: ""
+    startCommand: python app.py
