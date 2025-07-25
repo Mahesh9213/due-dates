@@ -1,0 +1,7 @@
+# Secrets
+token*.json
+credentials*.json
+
+# Python cache
+__pycache__/
+*.pyc

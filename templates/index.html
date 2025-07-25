@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Application Tracker</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        #table-container {
+            max-height: 400px; /* Set a fixed max height for scrolling */
+            overflow-y: auto; /* Enable vertical scrolling */
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto p-4">
+        <h1 class="text-3xl font-bold text-center mb-6">Job Application Tracker</h1>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="bg-{% if category == 'error' %}red{% elif category == 'info' or category == 'success' %}blue{% else %}yellow{% endif %}-100 border border-{% if category == 'error' %}red{% elif category == 'info' or category == 'success' %}blue{% else %}yellow{% endif %}-400 text-{% if category == 'error' %}red{% elif category == 'info' or category == 'success' %}blue{% else %}yellow{% endif %}-700 px-4 py-3 rounded relative mb-4" role="alert">
+                        <span class="block sm:inline">{{ message }}</span>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <div class="flex justify-between mb-4">
+            <a href="{{ url_for('process_emails') }}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded {% if processing %}opacity-50 cursor-not-allowed{% endif %}" {% if processing %}disabled{% endif %}>
+                Process Emails
+            </a>
+            {% if data %}
+            <a href="{{ url_for('download') }}" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+                Download Results
+            </a>
+            {% endif %}
+        </div>
+        
+        <div id="processing-message" class="text-center text-gray-600 mb-4" {% if not processing and not progress_state %}style="display: none;"{% endif %}>
+            {% if progress_state %}{{ progress_state|first }}{% endif %}
+        </div>
+        
+        <div id="table-container" {% if not data and not processing %}class="text-center text-gray-600"{% endif %}>
+            {% if data %}
+                <table class="min-w-full bg-white border border-gray-300">
+                    <thead>
+                        <tr class="bg-gray-200">
+                            <th class="py-2 px-4 border-b text-left">Title</th>
+                            <th class="py-2 px-4 border-b text-left">Job ID</th>
+                            <th class="py-2 px-4 border-b text-left">Due Date</th>
+                            <th class="py-2 px-4 border-b text-left">No of Emails</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in data %}
+                            <tr>
+                                <td class="py-2 px-4 border-b">{{ row.Title }}</td>
+                                <td class="py-2 px-4 border-b">{{ row.Job_ID }}</td>
+                                <td class="py-2 px-4 border-b">{{ row.Due_date }}</td>
+                                <td class="py-2 px-4 border-b">{{ row.No_of_emails }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div id="no-data-message">No data available. Click 'Process Emails' to fetch job details.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        function checkStatus() {
+            fetch('/status')
+                .then(response => response.json())
+                .then(data => {
+                    const processingMessage = document.getElementById('processing-message');
+                    const tableContainer = document.getElementById('table-container');
+                    const noDataMessage = document.getElementById('no-data-message');
+                    const jobTable = document.getElementById('job-table');
+
+                    if (data.error) {
+                        alert('Error: ' + data.error);
+                        processingMessage.style.display = 'none';
+                        return;
+                    }
+
+                    if (data.processing) {
+                        processingMessage.style.display = 'block';
+                        if (data.progress && data.progress.length > 0) {
+                            processingMessage.textContent = data.progress[0];
+                        }
+                    } else {
+                        if (data.data.length > 0) {
+                            // Update table with new data
+                            tableContainer.innerHTML = `
+                                <table class="min-w-full bg-white border border-gray-300">
+                                    <thead>
+                                        <tr class="bg-gray-200">
+                                            <th class="py-2 px-4 border-b text-left">Title</th>
+                                            <th class="py-2 px-4 border-b text-left">Job ID</th>
+                                            <th class="py-2 px-4 border-b text-left">Due Date</th>
+                                            <th class="py-2 px-4 border-b text-left">No of Emails</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${data.data.map(row => `
+                                            <tr>
+                                                <td class="py-2 px-4 border-b">${row.Title}</td>
+                                                <td class="py-2 px-4 border-b">${row.Job_ID}</td>
+                                                <td class="py-2 px-4 border-b">${row.Due_date}</td>
+                                                <td class="py-2 px-4 border-b">${row.No_of_emails}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            `;
+                            processingMessage.style.display = 'none'; // Hide progress message after table is displayed
+                            // Show download button if not already present
+                            if (!document.querySelector('a[href="/download"]')) {
+                                const buttonDiv = document.querySelector('.flex.justify-between.mb-4');
+                                buttonDiv.innerHTML += `
+                                    <a href="/download" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+                                        Download Results
+                                    </a>
+                                `;
+                            }
+                        } else {
+                            tableContainer.innerHTML = '<div id="no-data-message">No data available. Click \'Process Emails\' to fetch job details.</div>';
+                            processingMessage.style.display = 'none';
+                        }
+                    }
+
+                    // Continue polling if still processing
+                    if (data.processing) {
+                        setTimeout(checkStatus, 2000); // Poll every 2 seconds
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking status:', error);
+                    document.getElementById('processing-message').style.display = 'none';
+                    alert('Error checking processing status');
+                });
+        }
+
+        // Start polling if processing is true on page load
+        {% if processing %}
+            checkStatus();
+        {% endif %}
+    </script>
+</body>
+</html>
