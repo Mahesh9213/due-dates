@@ -2,10 +2,10 @@ services:
   - type: web
     name: due-dates
     env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: python app.py
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python app.py"
     envVars:
       - key: FLASK_SECRET_KEY
-        value: your-secret
-      - key: CLIENT_SECRET_JSON
-        value: {...} # Gmail OAuth json string
+        value: your-secret-key
+      - key: OAUTHLIB_INSECURE_TRANSPORT
+        value: 1
